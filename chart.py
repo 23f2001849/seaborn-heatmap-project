@@ -3,76 +3,82 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-# --- 1. Setup & Styling ---
-sns.set_theme(style="whitegrid")
-sns.set_context("talk")
+def main():
+    # 1. Setup & Styling
+    # Use a clean, professional style
+    sns.set_style("whitegrid")
+    sns.set_context("talk") # "talk" context makes labels readable at 512x512
 
-# --- 2. Generate Data (Long-Form) ---
-# Best Practice: Create data in 'long' format (Database style), then pivot.
-# Scenario: Customer Engagement by Day vs Hour
-np.random.seed(42)
-days_list = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-hours_list = list(range(24))
+    # 2. Generate Realistic Synthetic Data
+    # Context: Customer Engagement Metrics for Retail Client
+    np.random.seed(42)
+    n_customers = 200
 
-data_records = []
-for day in days_list:
-    for hour in hours_list:
-        # Business Logic: Higher engagement in evenings & weekends
-        base_engagement = 20
-        
-        # Weekend boost
-        if day in ['Sat', 'Sun']:
-            base_engagement += 30
-            
-        # Time of day patterns
-        if 18 <= hour <= 23:   # Evening peak
-            time_factor = 40
-        elif 9 <= hour <= 17:  # Work hours
-            time_factor = 15
-        else:                  # Late night
-            time_factor = 0
-            
-        # Add randomness
-        noise = np.random.randint(-10, 10)
-        score = max(0, base_engagement + time_factor + noise)
-        
-        data_records.append({
-            'Day': day,
-            'Hour': hour,
-            'Engagement Score': score
-        })
+    # Create base variables with realistic relationships
+    # Metric 1: Time on App (minutes)
+    time_on_app = np.random.normal(loc=15, scale=5, size=n_customers)
+    
+    # Metric 2: Pages Visited (correlated with Time)
+    pages_visited = (time_on_app * 0.8) + np.random.normal(0, 2, n_customers)
+    
+    # Metric 3: Purchase Value (correlated with Pages and Time)
+    purchase_value = (pages_visited * 5) + (time_on_app * 2) + np.random.normal(0, 10, n_customers)
+    
+    # Metric 4: Support Tickets (negative correlation with Satisfaction)
+    support_tickets = np.random.poisson(lam=1, size=n_customers)
+    
+    # Metric 5: Cust. Satisfaction (negative with Support, positive with Value)
+    satisfaction = 10 - (support_tickets * 2) + (purchase_value * 0.01) + np.random.normal(0, 1, n_customers)
+    
+    # Clip values to realistic ranges
+    time_on_app = np.maximum(time_on_app, 1)
+    pages_visited = np.maximum(pages_visited, 1)
+    purchase_value = np.maximum(purchase_value, 0)
+    satisfaction = np.clip(satisfaction, 1, 10)
 
-df_long = pd.DataFrame(data_records)
+    # Create DataFrame
+    df = pd.DataFrame({
+        'Time on App': time_on_app,
+        'Pages Visited': pages_visited,
+        'Purchase Value': purchase_value,
+        'Support Tickets': support_tickets,
+        'Satisfaction': satisfaction
+    })
 
-# --- 3. Data Transformation ---
-# Pivot the data for Heatmap (Rows=Day, Cols=Hour, Values=Score)
-heatmap_data = df_long.pivot(index="Day", columns="Hour", values="Engagement Score")
+    # 3. Calculate Correlation Matrix
+    # This is the key step for this specific task type
+    corr_matrix = df.corr()
 
-# Reorder index to ensure Mon-Sun order
-heatmap_data = heatmap_data.reindex(days_list)
+    # 4. Create Heatmap
+    # Requirement: 512x512 pixels -> 8 inches * 64 DPI
+    plt.figure(figsize=(8, 8))
+    
+    # Generate the Seaborn heatmap
+    # annot=True adds the numbers, fmt=".2f" formats them
+    # cmap='coolwarm' is standard for correlation (Red=Pos, Blue=Neg)
+    # vmin=-1, vmax=1 ensures the color scale is correct for correlations
+    ax = sns.heatmap(corr_matrix, 
+                     annot=True, 
+                     fmt=".2f", 
+                     cmap='coolwarm', 
+                     vmin=-1, vmax=1, 
+                     square=True,
+                     cbar_kws={"shrink": .8})
 
-# --- 4. Create Visualization ---
-# Requirement: 512x512 output -> 8 inches * 64 DPI
-plt.figure(figsize=(8, 8))
+    # 5. Professional Styling
+    plt.title('Customer Engagement Correlation Matrix', fontsize=16, pad=20)
+    
+    # Rotate labels for readability
+    plt.xticks(rotation=45, ha='right', fontsize=10)
+    plt.yticks(rotation=0, fontsize=10)
 
-# Generate Heatmap
-# Using 'fmt' and 'annot' makes it clearer this is a heatmap
-ax = sns.heatmap(heatmap_data, cmap="coolwarm", linewidths=.5, 
-                 cbar_kws={'label': 'Engagement Level'})
+    # Use tight_layout to fit labels INSIDE the figure without changing image size
+    plt.tight_layout()
 
-# --- 5. Professional Styling ---
-plt.title('Customer Engagement Heatmap', fontsize=18, pad=20)
-plt.xlabel('Hour of Day', fontsize=14)
-plt.ylabel('Day of Week', fontsize=14)
-plt.xticks(rotation=0, fontsize=10)
-plt.yticks(rotation=0, fontsize=12)
+    # 6. Save Chart
+    # Saving strictly as 512x512 pixels
+    plt.savefig('chart.png', dpi=64)
+    print("Success: Generated 'chart.png' (512x512 pixels)")
 
-# Use tight_layout to ensure labels fit within the 512x512 box
-plt.tight_layout()
-
-# --- 6. Save Chart ---
-# Validating strict 512x512 dimensions.
-# Note: We omit bbox_inches='tight' as it alters dimensions.
-plt.savefig('chart.png', dpi=64)
-
-print("Chart generated successfully: chart.png (512x512)")
+if __name__ == "__main__":
+    main()
